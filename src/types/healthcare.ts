@@ -1,0 +1,32 @@
+export interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  times: string[];
+  maxDailyDoses: number;
+  minAge: number;
+  instructions: string;
+  sideEffects: string;
+  precautions: string;
+  category: string;
+  color: string;
+}
+
+export interface Reminder {
+  id: string;
+  medicationId: string;
+  medicationName: string;
+  dosage: string;
+  scheduledTime: Date;
+  status: "pending" | "taken" | "missed" | "snoozed";
+  takenAt?: Date;
+  snoozedUntil?: Date;
+}
+
+export interface UserProfile {
+  name: string;
+  age: number;
+  caregiverPhone?: string;
+  caregiverEmail?: string;
+}

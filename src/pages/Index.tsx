@@ -4,19 +4,79 @@ import AppLayout from "@/components/AppLayout";
 import StatsCard from "@/components/StatsCard";
 import ReminderCard from "@/components/ReminderCard";
 import FullScreenAlert from "@/components/FullScreenAlert";
+import SafetyAlert from "@/components/SafetyAlert";
 import { AdherencePieChart, WeeklyBarChart } from "@/components/AdherenceCharts";
-import { sampleReminders } from "@/data/sampleData";
+import { sampleReminders, sampleMedications } from "@/data/sampleData";
 import { Reminder } from "@/types/healthcare";
+
+const USER_AGE = 65; // From profile
 
 const Index = () => {
   const [reminders, setReminders] = useState<Reminder[]>(sampleReminders);
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
+  const [safetyAlert, setSafetyAlert] = useState<{
+    open: boolean;
+    type: "overdose" | "age" | "caregiver";
+    name: string;
+    details: string;
+  }>({ open: false, type: "overdose", name: "", details: "" });
 
   const taken = reminders.filter((r) => r.status === "taken").length;
   const missed = reminders.filter((r) => r.status === "missed").length;
   const pending = reminders.filter((r) => r.status === "pending" || r.status === "snoozed").length;
 
   const handleTake = (id: string) => {
+    const reminder = reminders.find((r) => r.id === id);
+    if (!reminder) return;
+
+    const med = sampleMedications.find((m) => m.id === reminder.medicationId);
+    if (!med) return;
+
+    // 1️⃣ Daily dosage limit check
+    const takenToday = reminders.filter(
+      (r) => r.medicationId === med.id && r.status === "taken"
+    ).length;
+    if (takenToday >= med.maxDailyDoses) {
+      setSafetyAlert({
+        open: true,
+        type: "overdose",
+        name: med.name,
+        details: `You have already taken ${takenToday} dose(s) of ${med.name} today. The maximum allowed is ${med.maxDailyDoses} per day. Please consult your healthcare provider before taking more.`,
+      });
+      return;
+    }
+
+    // 2️⃣ Age suitability check
+    if (USER_AGE < med.minAge) {
+      setSafetyAlert({
+        open: true,
+        type: "age",
+        name: med.name,
+        details: `${med.name} is recommended for ages ${med.minAge}+. Your profile age (${USER_AGE}) does not meet the minimum requirement. Please consult a doctor before taking this medicine.`,
+      });
+      return;
+    }
+
+    // 3️⃣ Minimum time gap validation
+    const lastTaken = reminders
+      .filter((r) => r.medicationId === med.id && r.status === "taken" && r.takenAt)
+      .sort((a, b) => (b.takenAt!.getTime() - a.takenAt!.getTime()));
+
+    if (lastTaken.length > 0) {
+      const hoursSinceLast = (Date.now() - lastTaken[0].takenAt!.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLast < med.minHoursBetweenDoses) {
+        const remaining = Math.ceil(med.minHoursBetweenDoses - hoursSinceLast);
+        setSafetyAlert({
+          open: true,
+          type: "overdose",
+          name: med.name,
+          details: `You took ${med.name} ${Math.round(hoursSinceLast * 60)} minutes ago. The minimum gap between doses is ${med.minHoursBetweenDoses} hours. Please wait approximately ${remaining} more hour(s) before taking the next dose.`,
+        });
+        return;
+      }
+    }
+
+    // All checks passed — mark as taken
     setReminders((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "taken" as const, takenAt: new Date() } : r))
     );
@@ -86,6 +146,15 @@ const Index = () => {
         onClose={() => setAlertReminder(null)}
         onTake={handleTake}
         onSnooze={handleSnooze}
+      />
+
+      {/* Safety Alert */}
+      <SafetyAlert
+        open={safetyAlert.open}
+        onClose={() => setSafetyAlert((s) => ({ ...s, open: false }))}
+        type={safetyAlert.type}
+        medicineName={safetyAlert.name}
+        details={safetyAlert.details}
       />
     </AppLayout>
   );

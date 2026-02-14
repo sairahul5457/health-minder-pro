@@ -18,6 +18,7 @@ const AddMedication = () => {
     frequency: "Once daily",
     times: "08:00",
     maxDailyDoses: "1",
+    minHoursBetweenDoses: "6",
     minAge: "0",
     instructions: "",
     precautions: "",
@@ -114,10 +115,14 @@ const AddMedication = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label htmlFor="maxDoses">Max Daily Doses</Label>
               <Input id="maxDoses" type="number" min="1" max="20" value={form.maxDailyDoses} onChange={(e) => update("maxDailyDoses", e.target.value)} className="rounded-xl mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="minGap">Min Hours Gap</Label>
+              <Input id="minGap" type="number" min="1" max="24" value={form.minHoursBetweenDoses} onChange={(e) => update("minHoursBetweenDoses", e.target.value)} className="rounded-xl mt-1" />
             </div>
             <div>
               <Label htmlFor="minAge">Min Age</Label>

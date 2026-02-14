@@ -5,6 +5,7 @@ export interface Medication {
   frequency: string;
   times: string[];
   maxDailyDoses: number;
+  minHoursBetweenDoses: number;
   minAge: number;
   instructions: string;
   sideEffects: string;

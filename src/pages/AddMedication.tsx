@@ -13,6 +13,7 @@ const AddMedication = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [timesPerDay, setTimesPerDay] = useState("");
+  const [reminderTimes, setReminderTimes] = useState<string[]>([""]);
   const [matchedMed, setMatchedMed] = useState<typeof sampleMedications[0] | null>(null);
   const [searchResults, setSearchResults] = useState<typeof sampleMedications>([]);
 
@@ -164,10 +165,45 @@ const AddMedication = () => {
               max="20"
               placeholder="e.g. 2"
               value={timesPerDay}
-              onChange={(e) => setTimesPerDay(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTimesPerDay(val);
+                const count = parseInt(val);
+                if (!isNaN(count) && count > 0 && count <= 20) {
+                  setReminderTimes((prev) => {
+                    const arr = [...prev];
+                    while (arr.length < count) arr.push("");
+                    return arr.slice(0, count);
+                  });
+                }
+              }}
               className="rounded-xl mt-1"
             />
           </div>
+
+          {/* Reminder times */}
+          {reminderTimes.length > 0 && timesPerDay && parseInt(timesPerDay) > 0 && (
+            <div>
+              <Label>Reminder Time(s)</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {reminderTimes.map((t, i) => (
+                  <Input
+                    key={i}
+                    type="time"
+                    required
+                    value={t}
+                    onChange={(e) => {
+                      const updated = [...reminderTimes];
+                      updated[i] = e.target.value;
+                      setReminderTimes(updated);
+                    }}
+                    className="rounded-xl"
+                    placeholder={`Time ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <Button type="submit" className="w-full h-12 text-base gradient-primary border-0 text-primary-foreground hover:opacity-90 rounded-xl">

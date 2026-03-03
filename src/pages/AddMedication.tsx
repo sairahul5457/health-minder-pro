@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import SafetyAlert from "@/components/SafetyAlert";
 import { Input } from "@/components/ui/input";
@@ -9,6 +11,9 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Pill, Search } from "lucide-react";
 import { sampleMedications } from "@/data/sampleData";
 import { useReminders } from "@/context/RemindersContext";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const AddMedication = () => {
   const navigate = useNavigate();
@@ -18,6 +23,8 @@ const AddMedication = () => {
   const [reminderTimes, setReminderTimes] = useState<string[]>([""]);
   const [matchedMed, setMatchedMed] = useState<typeof sampleMedications[0] | null>(null);
   const [searchResults, setSearchResults] = useState<typeof sampleMedications>([]);
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const [safetyAlert, setSafetyAlert] = useState<{
     open: boolean;
@@ -108,6 +115,9 @@ const AddMedication = () => {
         dosage: dbMed?.dosage || "As prescribed",
         scheduledTime,
         status: "pending" as const,
+        snoozeCount: 0,
+        startDate: startDate || today,
+        endDate: endDate,
       };
     });
 
@@ -232,6 +242,42 @@ const AddMedication = () => {
               </div>
             </div>
           )}
+
+          {/* Date Range */}
+          <div>
+            <Label>Reminder Date Range</Label>
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Start Date</p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-xl", !startDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Pick date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">End Date</p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal rounded-xl", !endDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Ongoing"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} disabled={(date) => startDate ? date < startDate : false} initialFocus className="p-3 pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Leave end date empty for ongoing reminders</p>
+          </div>
         </div>
 
         <Button type="submit" className="w-full h-12 text-base gradient-primary border-0 text-primary-foreground hover:opacity-90 rounded-xl">

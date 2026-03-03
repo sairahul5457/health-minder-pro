@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RemindersProvider } from "@/context/RemindersContext";
+import ReminderAlertManager from "./components/ReminderAlertManager";
 import Index from "./pages/Index";
 import Medications from "./pages/Medications";
 import AddMedication from "./pages/AddMedication";
@@ -19,6 +20,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ReminderAlertManager />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/medications" element={<Medications />} />

@@ -23,6 +23,9 @@ export interface Reminder {
   status: "pending" | "taken" | "missed" | "snoozed";
   takenAt?: Date;
   snoozedUntil?: Date;
+  snoozeCount?: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export interface UserProfile {

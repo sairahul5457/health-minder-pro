@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pill, Search } from "lucide-react";
 import { sampleMedications } from "@/data/sampleData";
+import { useReminders } from "@/context/RemindersContext";
 
 const AddMedication = () => {
   const navigate = useNavigate();
+  const { addReminders } = useReminders();
   const [name, setName] = useState("");
   const [timesPerDay, setTimesPerDay] = useState("");
   const [reminderTimes, setReminderTimes] = useState<string[]>([""]);
@@ -57,6 +59,13 @@ const AddMedication = () => {
       return;
     }
 
+    // Check reminder times are filled
+    const filledTimes = reminderTimes.filter((t) => t.trim() !== "");
+    if (filledTimes.length < times) {
+      toast({ title: "⚠️ Missing Times", description: "Please set all reminder times." });
+      return;
+    }
+
     // Check against database limits
     const dbMed = sampleMedications.find(
       (m) => m.name.toLowerCase() === name.toLowerCase()
@@ -85,11 +94,30 @@ const AddMedication = () => {
       }
     }
 
+    // Create actual reminder objects and add to shared state
+    const today = new Date();
+    const newReminders = filledTimes.map((timeStr, i) => {
+      const [hours, minutes] = timeStr.split(":").map(Number);
+      const scheduledTime = new Date(today);
+      scheduledTime.setHours(hours, minutes, 0, 0);
+
+      return {
+        id: `r-${Date.now()}-${i}`,
+        medicationId: dbMed?.id || `custom-${Date.now()}`,
+        medicationName: name,
+        dosage: dbMed?.dosage || "As prescribed",
+        scheduledTime,
+        status: "pending" as const,
+      };
+    });
+
+    addReminders(newReminders);
+
     toast({
       title: "✅ Reminder Added",
       description: `${name} — ${times} time(s) per day.`,
     });
-    navigate("/medications");
+    navigate("/");
   };
 
   return (

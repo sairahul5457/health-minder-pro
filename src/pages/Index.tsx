@@ -6,13 +6,14 @@ import ReminderCard from "@/components/ReminderCard";
 import FullScreenAlert from "@/components/FullScreenAlert";
 import SafetyAlert from "@/components/SafetyAlert";
 import { AdherencePieChart, WeeklyBarChart } from "@/components/AdherenceCharts";
-import { sampleReminders, sampleMedications } from "@/data/sampleData";
+import { sampleMedications } from "@/data/sampleData";
 import { Reminder } from "@/types/healthcare";
+import { useReminders } from "@/context/RemindersContext";
 
-const USER_AGE = 65; // From profile
+const USER_AGE = 65;
 
 const Index = () => {
-  const [reminders, setReminders] = useState<Reminder[]>(sampleReminders);
+  const { reminders, setReminders } = useReminders();
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
   const [safetyAlert, setSafetyAlert] = useState<{
     open: boolean;
@@ -32,7 +33,6 @@ const Index = () => {
     const med = sampleMedications.find((m) => m.id === reminder.medicationId);
     if (!med) return;
 
-    // 1️⃣ Daily dosage limit check
     const takenToday = reminders.filter(
       (r) => r.medicationId === med.id && r.status === "taken"
     ).length;
@@ -46,7 +46,6 @@ const Index = () => {
       return;
     }
 
-    // 2️⃣ Age suitability check
     if (USER_AGE < med.minAge) {
       setSafetyAlert({
         open: true,
@@ -57,7 +56,6 @@ const Index = () => {
       return;
     }
 
-    // 3️⃣ Minimum time gap validation
     const lastTaken = reminders
       .filter((r) => r.medicationId === med.id && r.status === "taken" && r.takenAt)
       .sort((a, b) => (b.takenAt!.getTime() - a.takenAt!.getTime()));
@@ -76,7 +74,6 @@ const Index = () => {
       }
     }
 
-    // All checks passed — mark as taken
     setReminders((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "taken" as const, takenAt: new Date() } : r))
     );
@@ -99,7 +96,6 @@ const Index = () => {
 
   return (
     <AppLayout>
-      {/* Greeting */}
       <div className="mb-6 animate-fade-in">
         <h2 className="text-2xl font-bold text-foreground">Good {getGreeting()} 👋</h2>
         <p className="text-muted-foreground mt-1">
@@ -107,20 +103,17 @@ const Index = () => {
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <StatsCard title="Taken" value={taken} icon={<Check className="w-5 h-5" />} variant="taken" />
         <StatsCard title="Missed" value={missed} icon={<X className="w-5 h-5" />} variant="missed" />
         <StatsCard title="Pending" value={pending} icon={<Clock className="w-5 h-5" />} variant="pending" />
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <AdherencePieChart taken={taken} missed={missed} pending={pending} />
         <WeeklyBarChart />
       </div>
 
-      {/* Today's Reminders */}
       <div className="mb-4 flex items-center gap-2">
         <Activity className="w-5 h-5 text-primary" />
         <h3 className="text-lg font-bold text-foreground">Today's Reminders</h3>
@@ -139,7 +132,6 @@ const Index = () => {
           ))}
       </div>
 
-      {/* Full Screen Alert */}
       <FullScreenAlert
         reminder={alertReminder}
         open={!!alertReminder}
@@ -148,7 +140,6 @@ const Index = () => {
         onSnooze={handleSnooze}
       />
 
-      {/* Safety Alert */}
       <SafetyAlert
         open={safetyAlert.open}
         onClose={() => setSafetyAlert((s) => ({ ...s, open: false }))}

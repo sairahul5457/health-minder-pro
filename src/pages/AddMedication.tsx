@@ -5,25 +5,16 @@ import SafetyAlert from "@/components/SafetyAlert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pill } from "lucide-react";
+import { Plus, Pill, Search } from "lucide-react";
+import { sampleMedications } from "@/data/sampleData";
 
 const AddMedication = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: "",
-    dosage: "",
-    frequency: "Once daily",
-    times: "08:00",
-    maxDailyDoses: "1",
-    minHoursBetweenDoses: "6",
-    minAge: "0",
-    instructions: "",
-    precautions: "",
-    category: "General",
-  });
+  const [name, setName] = useState("");
+  const [timesPerDay, setTimesPerDay] = useState("");
+  const [matchedMed, setMatchedMed] = useState<typeof sampleMedications[0] | null>(null);
+  const [searchResults, setSearchResults] = useState<typeof sampleMedications>([]);
 
   const [safetyAlert, setSafetyAlert] = useState<{
     open: boolean;
@@ -32,33 +23,79 @@ const AddMedication = () => {
     details: string;
   }>({ open: false, type: "overdose", name: "", details: "" });
 
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (value.length > 0) {
+      const results = sampleMedications.filter((m) =>
+        m.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+      setMatchedMed(null);
+    }
+  };
+
+  const selectMedicine = (med: typeof sampleMedications[0]) => {
+    setName(med.name);
+    setMatchedMed(med);
+    setSearchResults([]);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const maxDoses = parseInt(form.maxDailyDoses);
-    if (maxDoses > 6) {
-      setSafetyAlert({
-        open: true,
-        type: "overdose",
-        name: form.name,
-        details: `A daily dosage of ${maxDoses} exceeds the safe limit. Please verify with your healthcare provider before proceeding.`,
-      });
+
+    if (!name.trim() || !timesPerDay.trim()) {
+      toast({ title: "⚠️ Missing Info", description: "Please enter tablet name and reminder count." });
       return;
     }
+
+    const times = parseInt(timesPerDay);
+    if (isNaN(times) || times < 1) {
+      toast({ title: "⚠️ Invalid", description: "Enter a valid number of reminders." });
+      return;
+    }
+
+    // Check against database limits
+    const dbMed = sampleMedications.find(
+      (m) => m.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (dbMed) {
+      if (times > dbMed.maxDailyDoses) {
+        setSafetyAlert({
+          open: true,
+          type: "overdose",
+          name: dbMed.name,
+          details: `${dbMed.name} has a maximum limit of ${dbMed.maxDailyDoses} doses per day. You entered ${times}. Please consult your healthcare provider.`,
+        });
+        return;
+      }
+
+      const minGapNeeded = 24 / times;
+      if (minGapNeeded < dbMed.minHoursBetweenDoses) {
+        setSafetyAlert({
+          open: true,
+          type: "overdose",
+          name: dbMed.name,
+          details: `Taking ${dbMed.name} ${times} times/day means a dose every ${minGapNeeded.toFixed(1)} hours, but the minimum safe gap is ${dbMed.minHoursBetweenDoses} hours.`,
+        });
+        return;
+      }
+    }
+
     toast({
-      title: "✅ Medication Added",
-      description: `${form.name} has been added to your reminders.`,
+      title: "✅ Reminder Added",
+      description: `${name} — ${times} time(s) per day.`,
     });
     navigate("/medications");
   };
 
-  const update = (field: string, value: string) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
   return (
     <AppLayout>
       <div className="mb-6 animate-fade-in">
-        <h2 className="text-2xl font-bold text-foreground">Add Medication ➕</h2>
-        <p className="text-muted-foreground mt-1">Set up a new medicine reminder</p>
+        <h2 className="text-2xl font-bold text-foreground">Add Reminder 💊</h2>
+        <p className="text-muted-foreground mt-1">Enter tablet name & reminder count</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -67,84 +104,74 @@ const AddMedication = () => {
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
               <Pill className="w-5 h-5 text-primary-foreground" />
             </div>
-            <h3 className="font-semibold text-foreground">Medicine Details</h3>
+            <h3 className="font-semibold text-foreground">Medicine Reminder</h3>
           </div>
 
+          {/* Tablet Name with search */}
+          <div className="relative">
+            <Label htmlFor="name">Tablet Name</Label>
+            <div className="relative mt-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="name"
+                required
+                placeholder="Search tablet name e.g. Metformin"
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className="rounded-xl pl-9"
+                autoComplete="off"
+              />
+            </div>
+            {searchResults.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                {searchResults.map((med) => (
+                  <button
+                    key={med.id}
+                    type="button"
+                    onClick={() => selectMedicine(med)}
+                    className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">{med.name}</p>
+                      <p className="text-xs text-muted-foreground">{med.dosage} · {med.category}</p>
+                    </div>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-lg">
+                      Max {med.maxDailyDoses}/day
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Show matched medicine info */}
+          {matchedMed && (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-sm space-y-1">
+              <p className="font-medium text-foreground">ℹ️ {matchedMed.name} — {matchedMed.dosage}</p>
+              <p className="text-muted-foreground">Max {matchedMed.maxDailyDoses} doses/day · Min {matchedMed.minHoursBetweenDoses}h gap · Age {matchedMed.minAge}+</p>
+              <p className="text-muted-foreground">{matchedMed.instructions}</p>
+            </div>
+          )}
+
+          {/* Times per day */}
           <div>
-            <Label htmlFor="name">Medicine Name</Label>
-            <Input id="name" required placeholder="e.g. Metformin" value={form.name} onChange={(e) => update("name", e.target.value)} className="rounded-xl mt-1" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="dosage">Dosage</Label>
-              <Input id="dosage" required placeholder="e.g. 500mg" value={form.dosage} onChange={(e) => update("dosage", e.target.value)} className="rounded-xl mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Select value={form.category} onValueChange={(v) => update("category", v)}>
-                <SelectTrigger className="rounded-xl mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {["General", "Diabetes", "Blood Pressure", "Antibiotic", "Supplement", "Pain Relief"].map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="frequency">Frequency</Label>
-              <Select value={form.frequency} onValueChange={(v) => update("frequency", v)}>
-                <SelectTrigger className="rounded-xl mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {["Once daily", "Twice daily", "Three times daily", "As needed"].map((f) => (
-                    <SelectItem key={f} value={f}>{f}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="times">Reminder Time</Label>
-              <Input id="times" type="time" value={form.times} onChange={(e) => update("times", e.target.value)} className="rounded-xl mt-1" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label htmlFor="maxDoses">Max Daily Doses</Label>
-              <Input id="maxDoses" type="number" min="1" max="20" value={form.maxDailyDoses} onChange={(e) => update("maxDailyDoses", e.target.value)} className="rounded-xl mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="minGap">Min Hours Gap</Label>
-              <Input id="minGap" type="number" min="1" max="24" value={form.minHoursBetweenDoses} onChange={(e) => update("minHoursBetweenDoses", e.target.value)} className="rounded-xl mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="minAge">Min Age</Label>
-              <Input id="minAge" type="number" min="0" value={form.minAge} onChange={(e) => update("minAge", e.target.value)} className="rounded-xl mt-1" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-2xl p-5 shadow-card space-y-4">
-          <h3 className="font-semibold text-foreground">Additional Info</h3>
-          <div>
-            <Label htmlFor="instructions">Instructions</Label>
-            <Textarea id="instructions" placeholder="How to take this medicine..." value={form.instructions} onChange={(e) => update("instructions", e.target.value)} className="rounded-xl mt-1" rows={2} />
-          </div>
-          <div>
-            <Label htmlFor="precautions">Precautions</Label>
-            <Textarea id="precautions" placeholder="Any safety precautions..." value={form.precautions} onChange={(e) => update("precautions", e.target.value)} className="rounded-xl mt-1" rows={2} />
+            <Label htmlFor="times">How many times per day?</Label>
+            <Input
+              id="times"
+              type="number"
+              required
+              min="1"
+              max="20"
+              placeholder="e.g. 2"
+              value={timesPerDay}
+              onChange={(e) => setTimesPerDay(e.target.value)}
+              className="rounded-xl mt-1"
+            />
           </div>
         </div>
 
         <Button type="submit" className="w-full h-12 text-base gradient-primary border-0 text-primary-foreground hover:opacity-90 rounded-xl">
-          <Plus className="w-5 h-5 mr-2" /> Add Medication
+          <Plus className="w-5 h-5 mr-2" /> Add Reminder
         </Button>
       </form>
 

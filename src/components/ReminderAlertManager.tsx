@@ -1,29 +1,51 @@
 import { useEffect, useState, useCallback } from "react";
 import { useReminders } from "@/context/RemindersContext";
+import { useProfile } from "@/context/ProfileContext";
 import FullScreenAlert from "@/components/FullScreenAlert";
 import { Reminder } from "@/types/healthcare";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const MAX_SNOOZES = 4;
 const SNOOZE_MINUTES = 10;
 
 const ReminderAlertManager = () => {
   const { reminders, setReminders } = useReminders();
+  const { profile } = useProfile();
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
 
-  const sendCaregiverAlert = useCallback((reminder: Reminder) => {
+  const sendCaregiverAlert = useCallback(async (reminder: Reminder) => {
     toast({
       title: "🚨 Caregiver Alert Sent",
       description: `${reminder.medicationName} was snoozed ${MAX_SNOOZES} times with no response. Alert sent to caregiver.`,
       variant: "destructive",
     });
+
+    // Send email via edge function
+    if (profile?.caregiverEmail) {
+      try {
+        await supabase.functions.invoke("send-caregiver-alert", {
+          body: {
+            caregiverEmail: profile.caregiverEmail,
+            caregiverName: "Caregiver",
+            patientName: profile.name,
+            medicationName: reminder.medicationName,
+            missedTime: reminder.scheduledTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            alertType: `Snoozed ${MAX_SNOOZES} times without response`,
+          },
+        });
+      } catch (e) {
+        console.error("Failed to send caregiver email:", e);
+      }
+    }
+
     // Mark as missed
     setReminders((prev) =>
       prev.map((r) =>
         r.id === reminder.id ? { ...r, status: "missed" as const } : r
       )
     );
-  }, [setReminders]);
+  }, [setReminders, profile]);
 
   // Check reminders every 15 seconds
   useEffect(() => {
@@ -31,26 +53,21 @@ const ReminderAlertManager = () => {
       const now = new Date();
 
       for (const reminder of reminders) {
-        // Skip non-actionable reminders
         if (reminder.status === "taken" || reminder.status === "missed") continue;
 
-        // Check date range validity
-        if (reminder.startDate && now < reminder.startDate) continue;
+        if (reminder.startDate && now < new Date(reminder.startDate)) continue;
         if (reminder.endDate) {
           const endOfDay = new Date(reminder.endDate);
           endOfDay.setHours(23, 59, 59, 999);
           if (now > endOfDay) continue;
         }
 
-        // For snoozed reminders, check if snooze period is over
         if (reminder.status === "snoozed" && reminder.snoozedUntil) {
-          if (now >= reminder.snoozedUntil) {
-            // Check if max snoozes reached
+          if (now >= new Date(reminder.snoozedUntil)) {
             if ((reminder.snoozeCount || 0) >= MAX_SNOOZES) {
               sendCaregiverAlert(reminder);
               continue;
             }
-            // Show alert again
             if (!alertReminder) {
               setAlertReminder(reminder);
             }
@@ -58,10 +75,8 @@ const ReminderAlertManager = () => {
           continue;
         }
 
-        // For pending reminders, check if it's time
         if (reminder.status === "pending") {
-          const timeDiff = now.getTime() - reminder.scheduledTime.getTime();
-          // Trigger if within 60 seconds of scheduled time (or past due up to 5 min)
+          const timeDiff = now.getTime() - new Date(reminder.scheduledTime).getTime();
           if (timeDiff >= 0 && timeDiff <= 5 * 60 * 1000) {
             if (!alertReminder) {
               setAlertReminder(reminder);
@@ -72,7 +87,7 @@ const ReminderAlertManager = () => {
     };
 
     const interval = setInterval(checkReminders, 15000);
-    checkReminders(); // Run immediately
+    checkReminders();
     return () => clearInterval(interval);
   }, [reminders, alertReminder, sendCaregiverAlert]);
 
@@ -92,11 +107,10 @@ const ReminderAlertManager = () => {
         const newSnoozeCount = (r.snoozeCount || 0) + 1;
 
         if (newSnoozeCount >= MAX_SNOOZES) {
-          // Will trigger caregiver alert on next check
           return {
             ...r,
             status: "snoozed" as const,
-            snoozedUntil: new Date(Date.now() + 1000), // Expire immediately
+            snoozedUntil: new Date(Date.now() + 1000),
             snoozeCount: newSnoozeCount,
           };
         }

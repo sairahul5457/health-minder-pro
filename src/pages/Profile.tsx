@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,18 +6,41 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { User, Phone, Mail, Save, Bell, Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useProfile } from "@/context/ProfileContext";
 
 const Profile = () => {
-  const [profile, setProfile] = useState({
-    name: "John Doe",
-    age: "65",
-    caregiverPhone: "+1 555-0123",
-    caregiverEmail: "caregiver@email.com",
+  const { profile, updateProfile } = useProfile();
+  const [form, setForm] = useState({
+    name: "",
+    age: "",
+    caregiverPhone: "",
+    caregiverEmail: "",
   });
   const [notifications, setNotifications] = useState(true);
   const [caregiverAlerts, setCaregiverAlerts] = useState(true);
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        name: profile.name,
+        age: String(profile.age),
+        caregiverPhone: profile.caregiverPhone || "",
+        caregiverEmail: profile.caregiverEmail || "",
+      });
+      setNotifications(profile.notifications);
+      setCaregiverAlerts(profile.caregiverAlerts);
+    }
+  }, [profile]);
+
+  const handleSave = async () => {
+    await updateProfile({
+      name: form.name.trim(),
+      age: parseInt(form.age),
+      caregiverPhone: form.caregiverPhone.trim(),
+      caregiverEmail: form.caregiverEmail.trim(),
+      notifications,
+      caregiverAlerts,
+    });
     toast({
       title: "✅ Profile Updated",
       description: "Your profile and preferences have been saved.",
@@ -39,18 +62,18 @@ const Profile = () => {
               <User className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground text-lg">{profile.name}</h3>
-              <p className="text-sm text-muted-foreground">Age: {profile.age}</p>
+              <h3 className="font-semibold text-foreground text-lg">{form.name}</h3>
+              <p className="text-sm text-muted-foreground">Age: {form.age}</p>
             </div>
           </div>
 
           <div>
             <Label htmlFor="name">Full Name</Label>
-            <Input id="name" value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} className="rounded-xl mt-1" />
+            <Input id="name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className="rounded-xl mt-1" />
           </div>
           <div>
             <Label htmlFor="age">Age</Label>
-            <Input id="age" type="number" value={profile.age} onChange={(e) => setProfile((p) => ({ ...p, age: e.target.value }))} className="rounded-xl mt-1" />
+            <Input id="age" type="number" value={form.age} onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))} className="rounded-xl mt-1" />
           </div>
         </div>
 
@@ -62,11 +85,11 @@ const Profile = () => {
           <p className="text-sm text-muted-foreground">Will be notified if you miss a reminder</p>
           <div>
             <Label htmlFor="phone" className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> Phone</Label>
-            <Input id="phone" value={profile.caregiverPhone} onChange={(e) => setProfile((p) => ({ ...p, caregiverPhone: e.target.value }))} className="rounded-xl mt-1" />
+            <Input id="phone" value={form.caregiverPhone} onChange={(e) => setForm((p) => ({ ...p, caregiverPhone: e.target.value }))} className="rounded-xl mt-1" />
           </div>
           <div>
             <Label htmlFor="email" className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> Email</Label>
-            <Input id="email" type="email" value={profile.caregiverEmail} onChange={(e) => setProfile((p) => ({ ...p, caregiverEmail: e.target.value }))} className="rounded-xl mt-1" />
+            <Input id="email" type="email" value={form.caregiverEmail} onChange={(e) => setForm((p) => ({ ...p, caregiverEmail: e.target.value }))} className="rounded-xl mt-1" />
           </div>
         </div>
 

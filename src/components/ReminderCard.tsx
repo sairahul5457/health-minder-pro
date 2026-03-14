@@ -1,5 +1,5 @@
 import { Reminder } from "@/types/healthcare";
-import { Check, X, Clock, Bell, AlarmClock } from "lucide-react";
+import { Check, X, Clock, Bell, AlarmClock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ReminderCardProps {
@@ -7,6 +7,7 @@ interface ReminderCardProps {
   onTake: (id: string) => void;
   onSnooze: (id: string) => void;
   onViewAlert: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 const statusConfig = {
@@ -36,7 +37,7 @@ const statusConfig = {
   },
 };
 
-const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert }: ReminderCardProps) => {
+const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert, onDelete }: ReminderCardProps) => {
   const config = statusConfig[reminder.status];
   const time = reminder.scheduledTime.toLocaleTimeString([], {
     hour: "2-digit",
@@ -66,6 +67,16 @@ const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert }: ReminderCardP
             {config.icon}
             {config.label}
           </span>
+          {onDelete && (
+            <Button
+              onClick={() => onDelete(reminder.id)}
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 p-1.5 h-auto"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
 

@@ -9,11 +9,12 @@ import { AdherencePieChart, WeeklyBarChart } from "@/components/AdherenceCharts"
 import { sampleMedications } from "@/data/sampleData";
 import { Reminder } from "@/types/healthcare";
 import { useReminders } from "@/context/RemindersContext";
-
-const USER_AGE = 65;
+import { useProfile } from "@/context/ProfileContext";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const { reminders, setReminders } = useReminders();
+  const { reminders, setReminders, deleteReminder } = useReminders();
+  const { profile } = useProfile();
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
   const [safetyAlert, setSafetyAlert] = useState<{
     open: boolean;
@@ -21,6 +22,8 @@ const Index = () => {
     name: string;
     details: string;
   }>({ open: false, type: "overdose", name: "", details: "" });
+
+  const userAge = profile?.age || 65;
 
   const taken = reminders.filter((r) => r.status === "taken").length;
   const missed = reminders.filter((r) => r.status === "missed").length;
@@ -31,46 +34,46 @@ const Index = () => {
     if (!reminder) return;
 
     const med = sampleMedications.find((m) => m.id === reminder.medicationId);
-    if (!med) return;
-
-    const takenToday = reminders.filter(
-      (r) => r.medicationId === med.id && r.status === "taken"
-    ).length;
-    if (takenToday >= med.maxDailyDoses) {
-      setSafetyAlert({
-        open: true,
-        type: "overdose",
-        name: med.name,
-        details: `You have already taken ${takenToday} dose(s) of ${med.name} today. The maximum allowed is ${med.maxDailyDoses} per day. Please consult your healthcare provider before taking more.`,
-      });
-      return;
-    }
-
-    if (USER_AGE < med.minAge) {
-      setSafetyAlert({
-        open: true,
-        type: "age",
-        name: med.name,
-        details: `${med.name} is recommended for ages ${med.minAge}+. Your profile age (${USER_AGE}) does not meet the minimum requirement. Please consult a doctor before taking this medicine.`,
-      });
-      return;
-    }
-
-    const lastTaken = reminders
-      .filter((r) => r.medicationId === med.id && r.status === "taken" && r.takenAt)
-      .sort((a, b) => (b.takenAt!.getTime() - a.takenAt!.getTime()));
-
-    if (lastTaken.length > 0) {
-      const hoursSinceLast = (Date.now() - lastTaken[0].takenAt!.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceLast < med.minHoursBetweenDoses) {
-        const remaining = Math.ceil(med.minHoursBetweenDoses - hoursSinceLast);
+    if (med) {
+      const takenToday = reminders.filter(
+        (r) => r.medicationId === med.id && r.status === "taken"
+      ).length;
+      if (takenToday >= med.maxDailyDoses) {
         setSafetyAlert({
           open: true,
           type: "overdose",
           name: med.name,
-          details: `You took ${med.name} ${Math.round(hoursSinceLast * 60)} minutes ago. The minimum gap between doses is ${med.minHoursBetweenDoses} hours. Please wait approximately ${remaining} more hour(s) before taking the next dose.`,
+          details: `You have already taken ${takenToday} dose(s) of ${med.name} today. The maximum allowed is ${med.maxDailyDoses} per day.`,
         });
         return;
+      }
+
+      if (userAge < med.minAge) {
+        setSafetyAlert({
+          open: true,
+          type: "age",
+          name: med.name,
+          details: `${med.name} is recommended for ages ${med.minAge}+. Your profile age (${userAge}) does not meet the minimum requirement.`,
+        });
+        return;
+      }
+
+      const lastTaken = reminders
+        .filter((r) => r.medicationId === med.id && r.status === "taken" && r.takenAt)
+        .sort((a, b) => (b.takenAt!.getTime() - a.takenAt!.getTime()));
+
+      if (lastTaken.length > 0) {
+        const hoursSinceLast = (Date.now() - lastTaken[0].takenAt!.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLast < med.minHoursBetweenDoses) {
+          const remaining = Math.ceil(med.minHoursBetweenDoses - hoursSinceLast);
+          setSafetyAlert({
+            open: true,
+            type: "overdose",
+            name: med.name,
+            details: `You took ${med.name} ${Math.round(hoursSinceLast * 60)} minutes ago. Please wait ${remaining} more hour(s).`,
+          });
+          return;
+        }
       }
     }
 
@@ -94,10 +97,15 @@ const Index = () => {
     if (reminder) setAlertReminder(reminder);
   };
 
+  const handleDelete = (id: string) => {
+    deleteReminder(id);
+    toast({ title: "🗑️ Reminder Deleted", description: "The reminder has been removed." });
+  };
+
   return (
     <AppLayout>
       <div className="mb-6 animate-fade-in">
-        <h2 className="text-2xl font-bold text-foreground">Good {getGreeting()} 👋</h2>
+        <h2 className="text-2xl font-bold text-foreground">Good {getGreeting()}, {profile?.name?.split(" ")[0]} 👋</h2>
         <p className="text-muted-foreground mt-1">
           You have <span className="font-semibold text-primary">{pending} reminders</span> pending today
         </p>
@@ -119,17 +127,24 @@ const Index = () => {
         <h3 className="text-lg font-bold text-foreground">Today's Reminders</h3>
       </div>
       <div className="space-y-3">
-        {reminders
-          .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
-          .map((reminder) => (
-            <ReminderCard
-              key={reminder.id}
-              reminder={reminder}
-              onTake={handleTake}
-              onSnooze={handleSnooze}
-              onViewAlert={handleViewAlert}
-            />
-          ))}
+        {reminders.length === 0 ? (
+          <div className="bg-card border border-border rounded-2xl p-8 text-center">
+            <p className="text-muted-foreground">No reminders yet. Add your first medication!</p>
+          </div>
+        ) : (
+          reminders
+            .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
+            .map((reminder) => (
+              <ReminderCard
+                key={reminder.id}
+                reminder={reminder}
+                onTake={handleTake}
+                onSnooze={handleSnooze}
+                onViewAlert={handleViewAlert}
+                onDelete={handleDelete}
+              />
+            ))
+        )}
       </div>
 
       <FullScreenAlert

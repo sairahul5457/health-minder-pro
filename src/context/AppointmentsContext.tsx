@@ -47,7 +47,8 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateAppointment = useCallback(async (id: string, data: Partial<Appointment>) => {
     const numId = parseInt(id);
-    if (!isNaN(numId)) await db.appointments.update(numId, data);
+    const { id: _id, ...dbData } = data;
+    if (!isNaN(numId)) await db.appointments.update(numId, dbData);
     setAppointments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, ...data } : a))
     );

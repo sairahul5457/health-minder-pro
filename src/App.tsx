@@ -5,11 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RemindersProvider } from "@/context/RemindersContext";
 import { ProfileProvider, useProfile } from "@/context/ProfileContext";
+import { AppointmentsProvider } from "@/context/AppointmentsContext";
 import ReminderAlertManager from "./components/ReminderAlertManager";
+import AppointmentAlertManager from "./components/AppointmentAlertManager";
 import Index from "./pages/Index";
 import Medications from "./pages/Medications";
 import AddMedication from "./pages/AddMedication";
 import Profile from "./pages/Profile";
+import Appointments from "./pages/Appointments";
 import SetupProfile from "./pages/SetupProfile";
 import NotFound from "./pages/NotFound";
 
@@ -32,18 +35,22 @@ const AppContent = () => {
 
   return (
     <RemindersProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <ReminderAlertManager />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/medications" element={<Medications />} />
-          <Route path="/add-medication" element={<AddMedication />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AppointmentsProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ReminderAlertManager />
+          <AppointmentAlertManager />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/medications" element={<Medications />} />
+            <Route path="/add-medication" element={<AddMedication />} />
+            <Route path="/appointments" element={<Appointments />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AppointmentsProvider>
     </RemindersProvider>
   );
 };

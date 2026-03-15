@@ -27,15 +27,34 @@ export interface DBReminder {
   createdAt: Date;
 }
 
+export interface DBAppointment {
+  id?: number;
+  doctorName: string;
+  specialty: string;
+  location: string;
+  appointmentDate: Date;
+  appointmentTime: string;
+  notes: string;
+  status: "upcoming" | "completed" | "cancelled";
+  alertTriggered: boolean;
+  createdAt: Date;
+}
+
 class MedRemindDB extends Dexie {
   profiles!: EntityTable<DBProfile, "id">;
   reminders!: EntityTable<DBReminder, "id">;
+  appointments!: EntityTable<DBAppointment, "id">;
 
   constructor() {
     super("MedRemindDB");
     this.version(1).stores({
       profiles: "++id",
       reminders: "++id, uniqueKey, medicationName, status, scheduledTime",
+    });
+    this.version(2).stores({
+      profiles: "++id",
+      reminders: "++id, uniqueKey, medicationName, status, scheduledTime",
+      appointments: "++id, doctorName, appointmentDate, status",
     });
   }
 }

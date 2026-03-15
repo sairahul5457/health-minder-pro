@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Pill, Search } from "lucide-react";
 import { sampleMedications } from "@/data/sampleData";
 import { useReminders } from "@/context/RemindersContext";
+import { useProfile } from "@/context/ProfileContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 const AddMedication = () => {
   const navigate = useNavigate();
   const { addReminders } = useReminders();
+  const { profile } = useProfile();
   const [name, setName] = useState("");
   const [timesPerDay, setTimesPerDay] = useState("");
   const [reminderTimes, setReminderTimes] = useState<string[]>([""]);
@@ -66,17 +68,27 @@ const AddMedication = () => {
       return;
     }
 
-    // Check reminder times are filled
     const filledTimes = reminderTimes.filter((t) => t.trim() !== "");
     if (filledTimes.length < times) {
       toast({ title: "⚠️ Missing Times", description: "Please set all reminder times." });
       return;
     }
 
-    // Check against database limits
     const dbMed = sampleMedications.find(
       (m) => m.name.toLowerCase() === name.toLowerCase()
     );
+
+    // Age validation — block if user is too young
+    const userAge = profile?.age || 0;
+    if (dbMed && userAge < dbMed.minAge) {
+      setSafetyAlert({
+        open: true,
+        type: "age",
+        name: dbMed.name,
+        details: `${dbMed.name} is only recommended for ages ${dbMed.minAge}+. Your profile age is ${userAge}. This medication cannot be added. Please consult your healthcare provider.`,
+      });
+      return;
+    }
 
     if (dbMed) {
       if (times > dbMed.maxDailyDoses) {
@@ -101,7 +113,6 @@ const AddMedication = () => {
       }
     }
 
-    // Create actual reminder objects and add to shared state
     const today = new Date();
     const newReminders = filledTimes.map((timeStr, i) => {
       const [hours, minutes] = timeStr.split(":").map(Number);
@@ -146,6 +157,13 @@ const AddMedication = () => {
             <h3 className="font-semibold text-foreground">Medicine Reminder</h3>
           </div>
 
+          {/* Age info badge */}
+          {profile && (
+            <div className="bg-secondary/50 rounded-lg px-3 py-2 text-sm text-secondary-foreground">
+              👤 Profile age: <span className="font-semibold">{profile.age} years</span> — medicines will be validated for your age
+            </div>
+          )}
+
           {/* Tablet Name with search */}
           <div className="relative">
             <Label htmlFor="name">Tablet Name</Label>
@@ -163,22 +181,35 @@ const AddMedication = () => {
             </div>
             {searchResults.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                {searchResults.map((med) => (
-                  <button
-                    key={med.id}
-                    type="button"
-                    onClick={() => selectMedicine(med)}
-                    className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-foreground">{med.name}</p>
-                      <p className="text-xs text-muted-foreground">{med.dosage} · {med.category}</p>
-                    </div>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-lg">
-                      Max {med.maxDailyDoses}/day
-                    </span>
-                  </button>
-                ))}
+                {searchResults.map((med) => {
+                  const ageOk = (profile?.age || 0) >= med.minAge;
+                  return (
+                    <button
+                      key={med.id}
+                      type="button"
+                      onClick={() => selectMedicine(med)}
+                      className={cn(
+                        "w-full text-left px-4 py-3 transition-colors flex items-center justify-between",
+                        ageOk ? "hover:bg-muted/50" : "opacity-50 bg-destructive/5"
+                      )}
+                    >
+                      <div>
+                        <p className="font-medium text-foreground">{med.name}</p>
+                        <p className="text-xs text-muted-foreground">{med.dosage} · {med.category}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!ageOk && (
+                          <span className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-lg">
+                            Age {med.minAge}+
+                          </span>
+                        )}
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-lg">
+                          Max {med.maxDailyDoses}/day
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -189,6 +220,9 @@ const AddMedication = () => {
               <p className="font-medium text-foreground">ℹ️ {matchedMed.name} — {matchedMed.dosage}</p>
               <p className="text-muted-foreground">Max {matchedMed.maxDailyDoses} doses/day · Min {matchedMed.minHoursBetweenDoses}h gap · Age {matchedMed.minAge}+</p>
               <p className="text-muted-foreground">{matchedMed.instructions}</p>
+              {(profile?.age || 0) < matchedMed.minAge && (
+                <p className="text-destructive font-medium">⚠️ Not suitable for your age ({profile?.age}). Minimum age: {matchedMed.minAge}</p>
+              )}
             </div>
           )}
 

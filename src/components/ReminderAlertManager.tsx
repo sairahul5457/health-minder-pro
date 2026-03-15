@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useReminders } from "@/context/RemindersContext";
 import { useProfile } from "@/context/ProfileContext";
 import FullScreenAlert from "@/components/FullScreenAlert";
@@ -8,11 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MAX_SNOOZES = 4;
 const SNOOZE_MINUTES = 10;
+const CHECK_INTERVAL_MS = 3000; // Check every 3 seconds for precise timing
 
 const ReminderAlertManager = () => {
   const { reminders, setReminders } = useReminders();
   const { profile } = useProfile();
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
+  const alertedIdsRef = useRef<Set<string>>(new Set());
 
   const sendCaregiverAlert = useCallback(async (reminder: Reminder) => {
     toast({
@@ -21,8 +23,7 @@ const ReminderAlertManager = () => {
       variant: "destructive",
     });
 
-    // Send email via edge function
-    if (profile?.caregiverEmail) {
+    if (profile?.caregiverEmail && profile.caregiverAlerts) {
       try {
         await supabase.functions.invoke("send-caregiver-alert", {
           body: {
@@ -39,7 +40,6 @@ const ReminderAlertManager = () => {
       }
     }
 
-    // Mark as missed
     setReminders((prev) =>
       prev.map((r) =>
         r.id === reminder.id ? { ...r, status: "missed" as const } : r
@@ -47,7 +47,7 @@ const ReminderAlertManager = () => {
     );
   }, [setReminders, profile]);
 
-  // Check reminders every 15 seconds
+  // Precise reminder checking - every 3 seconds
   useEffect(() => {
     const checkReminders = () => {
       const now = new Date();
@@ -55,6 +55,7 @@ const ReminderAlertManager = () => {
       for (const reminder of reminders) {
         if (reminder.status === "taken" || reminder.status === "missed") continue;
 
+        // Check date range
         if (reminder.startDate && now < new Date(reminder.startDate)) continue;
         if (reminder.endDate) {
           const endOfDay = new Date(reminder.endDate);
@@ -62,6 +63,7 @@ const ReminderAlertManager = () => {
           if (now > endOfDay) continue;
         }
 
+        // Handle snoozed reminders
         if (reminder.status === "snoozed" && reminder.snoozedUntil) {
           if (now >= new Date(reminder.snoozedUntil)) {
             if ((reminder.snoozeCount || 0) >= MAX_SNOOZES) {
@@ -75,10 +77,15 @@ const ReminderAlertManager = () => {
           continue;
         }
 
+        // Handle pending - trigger EXACTLY at scheduled time
         if (reminder.status === "pending") {
-          const timeDiff = now.getTime() - new Date(reminder.scheduledTime).getTime();
+          const scheduledTime = new Date(reminder.scheduledTime);
+          const timeDiff = now.getTime() - scheduledTime.getTime();
+          
+          // Trigger if we're within 0-60 seconds of scheduled time, or up to 5 min after
           if (timeDiff >= 0 && timeDiff <= 5 * 60 * 1000) {
-            if (!alertReminder) {
+            if (!alertReminder && !alertedIdsRef.current.has(reminder.id)) {
+              alertedIdsRef.current.add(reminder.id);
               setAlertReminder(reminder);
             }
           }
@@ -86,7 +93,7 @@ const ReminderAlertManager = () => {
       }
     };
 
-    const interval = setInterval(checkReminders, 15000);
+    const interval = setInterval(checkReminders, CHECK_INTERVAL_MS);
     checkReminders();
     return () => clearInterval(interval);
   }, [reminders, alertReminder, sendCaregiverAlert]);
@@ -97,6 +104,7 @@ const ReminderAlertManager = () => {
         r.id === id ? { ...r, status: "taken" as const, takenAt: new Date() } : r
       )
     );
+    alertedIdsRef.current.delete(id);
     setAlertReminder(null);
   };
 
@@ -123,6 +131,7 @@ const ReminderAlertManager = () => {
         };
       })
     );
+    alertedIdsRef.current.delete(id);
     setAlertReminder(null);
 
     const reminder = reminders.find((r) => r.id === id);

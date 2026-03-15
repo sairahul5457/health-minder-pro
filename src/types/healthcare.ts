@@ -28,6 +28,18 @@ export interface Reminder {
   endDate?: Date;
 }
 
+export interface Appointment {
+  id: string;
+  doctorName: string;
+  specialty: string;
+  location: string;
+  appointmentDate: Date;
+  appointmentTime: string;
+  notes: string;
+  status: "upcoming" | "completed" | "cancelled";
+  alertTriggered: boolean;
+}
+
 export interface UserProfile {
   name: string;
   age: number;

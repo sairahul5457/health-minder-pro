@@ -1,10 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Pill, Plus, User, Bell } from "lucide-react";
+import { LayoutDashboard, Pill, Plus, User, Stethoscope } from "lucide-react";
 
 const navItems = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/", label: "Home", icon: LayoutDashboard },
   { path: "/medications", label: "Medicines", icon: Pill },
   { path: "/add-medication", label: "Add", icon: Plus },
+  { path: "/appointments", label: "Doctor", icon: Stethoscope },
   { path: "/profile", label: "Profile", icon: User },
 ];
 
@@ -13,12 +14,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Header */}
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b border-border">
         <div className="container max-w-2xl mx-auto flex items-center justify-between px-4 h-16">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl gradient-hero flex items-center justify-center">
-              <Bell className="w-5 h-5 text-primary-foreground" />
+              <Pill className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h1 className="font-bold text-foreground text-lg leading-tight">MedRemind</h1>
@@ -36,14 +36,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container max-w-2xl mx-auto px-4 pb-24 pt-4">
         {children}
       </main>
 
-      {/* Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/90 backdrop-blur-lg border-t border-border">
-        <div className="container max-w-2xl mx-auto flex items-center justify-around px-4 h-16">
+        <div className="container max-w-2xl mx-auto flex items-center justify-around px-2 h-16">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;

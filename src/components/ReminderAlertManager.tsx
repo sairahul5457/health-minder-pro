@@ -101,7 +101,38 @@ const ReminderAlertManager = () => {
     return () => clearInterval(interval);
   }, [reminders, alertReminder, sendCaregiverAlert]);
 
+  // Auto-snooze: if alert is open and user doesn't respond within timeout
+  useEffect(() => {
+    if (alertReminder) {
+      autoSnoozeTimerRef.current = setTimeout(() => {
+        const r = reminders.find((rem) => rem.id === alertReminder.id);
+        const currentCount = (r?.snoozeCount || 0) + 1;
+        const remaining = MAX_SNOOZES - currentCount;
+
+        toast({
+          title: `⏰ Auto-Snoozed (${currentCount}/${MAX_SNOOZES})`,
+          description: `No response for ${alertReminder.medicationName}. Auto-snoozed for ${SNOOZE_MINUTES} min.${remaining > 0 ? ` ${remaining} snooze(s) left.` : " Caregiver will be alerted."}`,
+          variant: remaining <= 1 ? "destructive" : "default",
+        });
+
+        handleSnooze(alertReminder.id);
+      }, AUTO_SNOOZE_TIMEOUT_MS);
+
+      return () => {
+        if (autoSnoozeTimerRef.current) clearTimeout(autoSnoozeTimerRef.current);
+      };
+    }
+  }, [alertReminder]);
+
+  const clearAutoSnoozeTimer = () => {
+    if (autoSnoozeTimerRef.current) {
+      clearTimeout(autoSnoozeTimerRef.current);
+      autoSnoozeTimerRef.current = null;
+    }
+  };
+
   const handleTake = (id: string) => {
+    clearAutoSnoozeTimer();
     setReminders((prev) =>
       prev.map((r) =>
         r.id === id ? { ...r, status: "taken" as const, takenAt: new Date() } : r
@@ -112,6 +143,7 @@ const ReminderAlertManager = () => {
   };
 
   const handleSnooze = (id: string) => {
+    clearAutoSnoozeTimer();
     setReminders((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;

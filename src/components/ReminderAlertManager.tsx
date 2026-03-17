@@ -10,11 +10,14 @@ const MAX_SNOOZES = 4;
 const SNOOZE_MINUTES = 10;
 const CHECK_INTERVAL_MS = 3000; // Check every 3 seconds for precise timing
 
+const AUTO_SNOOZE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
 const ReminderAlertManager = () => {
   const { reminders, setReminders } = useReminders();
   const { profile } = useProfile();
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
   const alertedIdsRef = useRef<Set<string>>(new Set());
+  const autoSnoozeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sendCaregiverAlert = useCallback(async (reminder: Reminder) => {
     toast({

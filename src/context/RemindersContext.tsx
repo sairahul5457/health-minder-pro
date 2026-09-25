@@ -7,6 +7,7 @@ interface RemindersContextType {
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
   addReminders: (newReminders: Reminder[]) => void;
   deleteReminder: (id: string) => void;
+  replaceGroup: (groupId: string, newReminders: Reminder[]) => Promise<void>;
   loading: boolean;
 }
 
@@ -20,6 +21,9 @@ const dbToReminder = (r: any): Reminder => ({
   snoozedUntil: r.snoozedUntil ? new Date(r.snoozedUntil) : undefined,
   startDate: r.startDate ? new Date(r.startDate) : undefined,
   endDate: r.endDate ? new Date(r.endDate) : undefined,
+  groupId: r.groupId || String(r.uniqueKey || r.id).replace(/-\d+$/, ""),
+  prescriptionStartDate: r.prescriptionStartDate ? new Date(r.prescriptionStartDate) : undefined,
+  prescriptionEndDate: r.prescriptionEndDate ? new Date(r.prescriptionEndDate) : undefined,
 });
 
 export const RemindersProvider = ({ children }: { children: ReactNode }) => {
@@ -65,6 +69,16 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
         snoozeCount: r.snoozeCount || 0,
         startDate: r.startDate,
         endDate: r.endDate,
+        groupId: r.groupId,
+        hasPrescription: r.hasPrescription,
+        doctorName: r.doctorName,
+        prescriptionReference: r.prescriptionReference,
+        prescribedDose: r.prescribedDose,
+        prescribedFrequency: r.prescribedFrequency,
+        prescribedTimes: r.prescribedTimes,
+        prescriptionStartDate: r.prescriptionStartDate,
+        prescriptionEndDate: r.prescriptionEndDate,
+        prescriptionInstructions: r.prescriptionInstructions,
         createdAt: new Date(),
       })),
       { allKeys: true }
@@ -83,8 +97,16 @@ export const RemindersProvider = ({ children }: { children: ReactNode }) => {
     setReminders((prev) => prev.filter((r) => r.id !== id));
   }, []);
 
+  const replaceGroup = useCallback(async (groupId: string, newReminders: Reminder[]) => {
+    const old = reminders.filter((r) => r.groupId === groupId);
+    const numIds = old.map((r) => parseInt(r.id)).filter((n) => !isNaN(n));
+    await db.reminders.bulkDelete(numIds);
+    setReminders((prev) => prev.filter((r) => r.groupId !== groupId));
+    await addReminders(newReminders);
+  }, [reminders, addReminders]);
+
   return (
-    <RemindersContext.Provider value={{ reminders, setReminders, addReminders, deleteReminder, loading }}>
+    <RemindersContext.Provider value={{ reminders, setReminders, addReminders, deleteReminder, replaceGroup, loading }}>
       {children}
     </RemindersContext.Provider>
   );

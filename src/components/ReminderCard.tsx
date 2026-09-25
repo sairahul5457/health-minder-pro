@@ -1,5 +1,5 @@
 import { Reminder } from "@/types/healthcare";
-import { Check, X, Clock, Bell, AlarmClock, Trash2 } from "lucide-react";
+import { Check, X, Clock, Bell, AlarmClock, Trash2, Pencil, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ReminderCardProps {
@@ -8,6 +8,7 @@ interface ReminderCardProps {
   onSnooze: (id: string) => void;
   onViewAlert: (id: string) => void;
   onDelete?: (id: string) => void;
+  onEdit?: (reminder: Reminder) => void;
 }
 
 const statusConfig = {
@@ -37,7 +38,7 @@ const statusConfig = {
   },
 };
 
-const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert, onDelete }: ReminderCardProps) => {
+const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert, onDelete, onEdit }: ReminderCardProps) => {
   const config = statusConfig[reminder.status];
   const time = reminder.scheduledTime.toLocaleTimeString([], {
     hour: "2-digit",
@@ -58,6 +59,11 @@ const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert, onDelete }: Rem
             <p className="text-muted-foreground text-sm">
               {reminder.dosage} • {time}
             </p>
+            {reminder.hasPrescription && (
+              <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+                <FileText className="w-3 h-3" /> Prescribed{reminder.doctorName ? ` by Dr. ${reminder.doctorName}` : ""}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -67,6 +73,17 @@ const ReminderCard = ({ reminder, onTake, onSnooze, onViewAlert, onDelete }: Rem
             {config.icon}
             {config.label}
           </span>
+          {onEdit && (
+            <Button
+              onClick={() => onEdit(reminder)}
+              size="sm"
+              variant="ghost"
+              aria-label="Edit reminder"
+              className="p-1.5 h-auto"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+          )}
           {onDelete && (
             <Button
               onClick={() => onDelete(reminder.id)}

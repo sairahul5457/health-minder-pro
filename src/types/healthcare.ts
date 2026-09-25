@@ -26,6 +26,16 @@ export interface Reminder {
   snoozeCount?: number;
   startDate?: Date;
   endDate?: Date;
+  groupId?: string;
+  hasPrescription?: boolean;
+  doctorName?: string;
+  prescriptionReference?: string;
+  prescribedDose?: string;
+  prescribedFrequency?: number;
+  prescribedTimes?: string[];
+  prescriptionStartDate?: Date;
+  prescriptionEndDate?: Date;
+  prescriptionInstructions?: string;
 }
 
 export interface Appointment {

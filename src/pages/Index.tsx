@@ -11,10 +11,12 @@ import { Reminder } from "@/types/healthcare";
 import { useReminders } from "@/context/RemindersContext";
 import { useProfile } from "@/context/ProfileContext";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { reminders, setReminders, deleteReminder } = useReminders();
   const { profile } = useProfile();
+  const navigate = useNavigate();
   const [alertReminder, setAlertReminder] = useState<Reminder | null>(null);
   const [safetyAlert, setSafetyAlert] = useState<{
     open: boolean;
@@ -142,6 +144,7 @@ const Index = () => {
                 onSnooze={handleSnooze}
                 onViewAlert={handleViewAlert}
                 onDelete={handleDelete}
+                onEdit={(r) => navigate(`/add-medication?edit=${encodeURIComponent(r.groupId || r.id)}`)}
               />
             ))
         )}
